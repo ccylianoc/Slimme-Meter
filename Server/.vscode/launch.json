@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run SQLinJAVA with SQLite",
+            "request": "launch",
+            "mainClass": "SQLinJAVA",
+            "vmArgs": "--enable-native-access=ALL-UNNAMED",
+            "classPaths": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/libs/sqlite-jdbc-3.51.1.0.jar"
+            ]
+        }
+    ]
+}
