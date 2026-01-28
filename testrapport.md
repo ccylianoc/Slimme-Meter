@@ -118,7 +118,7 @@ Verwachting: Data wordt normaal weergeven met tijdstamp
 | test nr | resultaat |
 | ------- | --------- |
 | 1       | ✅        |
-| 2       | ✅        |
+| 2       | ✅s       |
 | 3       | ✅        |
 | 4       | ✅        |
 | 5       | ✅        |

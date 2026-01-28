@@ -39,13 +39,27 @@ abstract class MyHandler implements HTTPHandler{
     }
 }
 
-class GETHandler extends MyHandler{
-    public void handle(HttpExchange httpExchange) throws IOException{
-        if (checkMethod(httpExchange, "GET")) { 
-              sendResponse(httpExchange, "It's the most wonderful time of the year!");
-        }
+class GETHandler extends MyHandler {
+    @Override
+    public void handle(HttpExchange httpExchange) throws IOException {
+        if (!checkMethod(httpExchange, "GET")) return;
+
+        String json =
+            "{" +
+            "\"voltage\": \"" + SensorData.voltage + "\"," +
+            "\"resistance\": \"" + SensorData.resistance + "\"" +
+            "}";
+
+        Headers headers = httpExchange.getResponseHeaders();
+        headers.add("Content-Type", "application/json");
+
+        httpExchange.sendResponseHeaders(200, json.length());
+        OutputStream os = httpExchange.getResponseBody();
+        os.write(json.getBytes());
+        os.close();
     }
 }
+
 
 class POSTHandler extends MyHandler {
     public void handle(HttpExchange httpExchange) throws IOException {
@@ -91,12 +105,48 @@ class WebPageHandler extends MyHandler {
             "<head>" +
                 "<meta charset='UTF-8'>" +
                 "<title>ESP Dashboard</title>" +
-                "<meta http-equiv='refresh' content='2'>" +
+                "<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>" +
+                "<style>" +
+                    "body { font-family: Arial; padding: 20px; }" +
+                    "canvas { max-width: 800px; }" +
+                "</style>" +
             "</head>" +
             "<body>" +
-                "<h1>ESP Sensor Dashboard</h1>" +
-                "<p><strong>Voltage:</strong> " + SensorData.voltage + " V</p>" +
-                "<p><strong>Weerstand ATtiny:</strong> " + SensorData.resistance + " Ohm</p>" +
+                "<h1>Slimme Meter - Dashboard</h1>" +
+                "<p><strong>Voltage (LDR):</strong> <span id='voltageVal'>" + SensorData.voltage + "</span> V</p>" +
+                "<p><strong>Weerstand (Potmeter):</strong> <span id='resistanceVal'>" + SensorData.resistance + "</span> Ohm</p>" +
+                "<canvas id='sensorChart'></canvas>" +
+
+                "<script>" +
+                "const ctx = document.getElementById('sensorChart').getContext('2d');" +
+                "const data = {" +
+                    "labels: []," +
+                    "datasets: [" +
+                        "{ label: 'Voltage (V)', borderColor: 'blue', backgroundColor: 'rgba(0,0,255,0.2)', data: [] }," +
+                        "{ label: 'Resistance (Ohm)', borderColor: 'red', backgroundColor: 'rgba(255,0,0,0.2)', data: [] }" +
+                    "]" +
+                "};" +
+
+                "const config = { type: 'line', data: data, options: { responsive: true, animation: false, scales: { y: { beginAtZero: true } } } };" +
+                "const myChart = new Chart(ctx, config);" +
+
+                "function updateChart() {" +
+                    "fetch('/get_data')" +
+                    ".then(response => response.json())" +
+                    ".then(json => {" +
+                        "const now = new Date().toLocaleTimeString();" +
+                        "data.labels.push(now);" +
+                        "data.datasets[0].data.push(parseFloat(json.voltage));" +
+                        "data.datasets[1].data.push(parseFloat(json.resistance));" +
+                        "if(data.labels.length > 20) { data.labels.shift(); data.datasets[0].data.shift(); data.datasets[1].data.shift(); }" +
+                        "document.getElementById('voltageVal').textContent = json.voltage;" +
+                        "document.getElementById('resistanceVal').textContent = json.resistance;" +
+                        "myChart.update();" +
+                    "});" +
+                "}" +
+
+                "setInterval(updateChart, 2000);" +
+                "</script>" +
             "</body>" +
             "</html>";
 
@@ -109,6 +159,7 @@ class WebPageHandler extends MyHandler {
         os.close();
     }
 }
+
 
 
 
@@ -126,6 +177,7 @@ class DataBase{
             String dropTableLDR = "DROP TABLE IF EXISTS LDR"; //clean start
             stmt.execute(dropTableLDR);
 
+            // maakt een tabel aan voor de attiny inputs met waarde en tijd
             String createTableATTiny = "CREATE TABLE IF NOT EXISTS ATTiny85 (" +
                                  "id INTEGER PRIMARY KEY," +
                                  "weerstand FLOAT NOT NULL," +
@@ -133,6 +185,7 @@ class DataBase{
                                  ")";
             stmt.execute(createTableATTiny);
 
+            // maakt een tabel aan voor de LDR inputs met waarde en tijd
             String createTableLDR = "CREATE TABLE IF NOT EXISTS LDR (" +
                                  "id INTEGER PRIMARY KEY," +
                                  "voltage FLOAT NOT NULL," +
@@ -140,9 +193,10 @@ class DataBase{
                                  ")";
             stmt.execute(createTableLDR);
 
+            // insert meteen de eerste waarde
             String InsertDataATTiny = "INSERT INTO ATTiny85 (weerstand) VALUES (" + SensorData.resistance + ")";
             stmt.execute(InsertDataATTiny);
-
+            // insert meteen de eerste waarde
             String InsertDataLDR = "INSERT INTO LDR (voltage) VALUES (" + SensorData.voltage + ")";
             stmt.execute(InsertDataLDR);
             
@@ -159,7 +213,7 @@ class InsertData{
             Connection conn = DriverManager.getConnection("jdbc:sqlite:libs/SQLite.db");
             Statement stmt = conn.createStatement();
             // Voorkomt dat er lege data in de database wordt gezet en de database vol zet met onbruikbare data 
-            //(je kan ook hierdoor pauzes in de data zien en tijd wanneer er iets fout is gegaan)
+            // (je kan ook hierdoor pauzes in de data zien en tijd wanneer er iets fout is gegaan)
             if(SensorData.resistance.equals("-")){ 
                 return;
             }else{
