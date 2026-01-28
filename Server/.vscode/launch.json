@@ -3,9 +3,9 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Run SQLinJAVA with SQLite",
+            "name": "Run Server with SQLite",
             "request": "launch",
-            "mainClass": "SQLinJAVA",
+            "mainClass": "Server",
             "vmArgs": "--enable-native-access=ALL-UNNAMED",
             "classPaths": [
                 "${workspaceFolder}",

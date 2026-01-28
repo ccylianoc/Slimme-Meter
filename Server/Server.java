@@ -158,36 +158,42 @@ class InsertData{
         try {
             Connection conn = DriverManager.getConnection("jdbc:sqlite:libs/SQLite.db");
             Statement stmt = conn.createStatement();
-            if(SensorData.resistance.equals("-") ||SensorData.voltage.equals("-") ){
+            // Voorkomt dat er lege data in de database wordt gezet en de database vol zet met onbruikbare data 
+            //(je kan ook hierdoor pauzes in de data zien en tijd wanneer er iets fout is gegaan)
+            if(SensorData.resistance.equals("-")){ 
                 return;
+            }else{
+
+            // Inserts sturen dezelfde data zowel naar de webpagina als database
+                stmt.execute(
+                    "INSERT INTO ATTiny85 (weerstand) VALUES (" + SensorData.resistance + ")"
+                );
+            }
+            if(SensorData.voltage.equals("-") ){
+                return;
+            }else{
+                stmt.execute(
+                    "INSERT INTO LDR (voltage) VALUES (" + SensorData.voltage + ")"
+                );
             }
 
-            stmt.execute(
-                "INSERT INTO ATTiny85 (weerstand) VALUES (" + SensorData.resistance + ")"
-            );
-
-            stmt.execute(
-                "INSERT INTO LDR (voltage) VALUES (" + SensorData.voltage + ")"
-            );
-
-            System.out.println("Nieuwe data in database");
-
         } catch (SQLException e) {
-            System.out.println("Fout bij verbinden: " + e.getMessage());
+            System.out.println("Fout bij verbinden: " + e.getMessage());    //geeft foutmelding in terminal
         }
     }
 }
 
+// Hoofdklasse maakt gebruik van alle handlers voor de server en InputData en DataBase klassen voor database interactie
 
 public class Server {
     public static void main(String[] args) {
 
-        DataBase dbbuild = new DataBase();
-        dbbuild.BuildBase();
+        DataBase dbbuild = new DataBase();  // maak een object aan van de klasse DataBase om te runnen
+        dbbuild.BuildBase();               // bouw de database en tabellen op (verwijder oude tabellen eerst)
 
-        InsertData db = new InsertData();
+        InsertData db = new InsertData(); // maakt een object aan van klasse InsetData om in Thread te gebruiken voor elke 2 sec nieuwe data
 
-        InetAddress localhost;
+        InetAddress localhost; 
         try {
             localhost = InetAddress.getLocalHost();
         }
@@ -196,20 +202,21 @@ public class Server {
         }
         System.out.println("Local address: " + localhost);
         try {
-            // maak een nieuwe server aan op localhost poort 8000
+            // maakt een nieuwe server aan op localhost poort 8000
             HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
-            server.createContext("/", new WebPageHandler()); // koppel toegangspunten aan handlers
-            server.createContext("/get_data", new GETHandler()); // koppel toegangspunten aan handlers
-            server.createContext("/post_data", new POSTHandler());
+            server.createContext("/", new WebPageHandler()); // koppelt toegangspunten aan handlers
+            server.createContext("/get_data", new GETHandler()); // koppelt toegangspunten aan handlers
+            server.createContext("/post_data", new POSTHandler());  // koppelt toegangspunten aan handlers
             server.start(); // start de server
         }
         catch (IOException e) {
             System.err.println("IOException: " + e.getMessage()); // print foutboodschap
         }
 
+        // Gebruik gemaakt van AI om threads uit te leggen zodat ik er een kon maken voor automatische database input
         new Thread(() -> {
             while (true){
-                db.InputData();
+                db.InputData(); // runt de InputData methode om nieuwe data te verzenden naar SQLite.db
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
@@ -220,4 +227,6 @@ public class Server {
     }     
 }
 
+
+// command gekregen van AI na problemen .jar bestand toe te voegen als lib
 // RUN bestand met : java -cp ".;libs\sqlite-jdbc-3.51.1.0.jar" Server
